@@ -1,10 +1,7 @@
 #Codigo tomado de https://www.kaggle.com/code/joeportilla/c-mo-graficar-espectrogramas-de-audios-en-python
 import matplotlib
 import matplotlib.pyplot as plt
-#import librosa
-#import librosa.display
 import numpy as np
-#import IPython
 from scipy.io import wavfile
 from scipy.fft import fftshift
 
