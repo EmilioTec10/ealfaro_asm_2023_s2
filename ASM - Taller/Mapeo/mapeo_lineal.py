@@ -1,7 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-def linear_mapping(a, b, xlim=(-2, 2), ylim=(-2, 2), resolution=400):
+#Se tomo ayuda de https://chatgpt.com/
+def linear_mapping(a, b, Z):
     """
     Realiza el mapeo lineal w = az + b y grafica el resultado con puntos.
     
@@ -12,11 +13,6 @@ def linear_mapping(a, b, xlim=(-2, 2), ylim=(-2, 2), resolution=400):
     - ylim: tupla con los límites del eje y (parte imaginaria).
     - resolution: número de puntos en cada dimensión.
     """
-    # Crear una malla de valores en el plano complejo
-    real = np.linspace(xlim[0], xlim[1], resolution)
-    imag = np.linspace(ylim[0], ylim[1], resolution)
-    X, Y = np.meshgrid(real, imag)
-    Z = X + 1j * Y  # Z = x + iy, números complejos en la malla
 
     # Aplicar el mapeo lineal w = az + b
     W = a * Z + b
@@ -51,5 +47,15 @@ def linear_mapping(a, b, xlim=(-2, 2), ylim=(-2, 2), resolution=400):
 a = 2 + 1j  # Constante compleja a
 b = 1 + 1j  # Constante compleja b
 
+ # Crear una malla de valores en el plano complejo
+xlim=(-2, 2)
+ylim=(-2, 2)
+resolution=400
+real = np.linspace(xlim[0], xlim[1], resolution)
+imag = np.linspace(ylim[0], ylim[1], resolution)
+X, Y = np.meshgrid(real, imag)
+Z = X + 1j * Y  # Z = x + iy, números complejos en la malla
+
+
 # Llamar a la función con el mapeo lineal
-linear_mapping(a, b)
+linear_mapping(a, b, Z)

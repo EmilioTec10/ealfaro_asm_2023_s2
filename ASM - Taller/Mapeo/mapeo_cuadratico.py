@@ -1,7 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-def quadratic_mapping(xlim=(-2, 2), ylim=(-2, 2), resolution=400):
+#Se tomo ayuda de https://chatgpt.com/
+def quadratic_mapping(Z):
     """
     Realiza el mapeo cuadrático w = z^2 y grafica el resultado con puntos.
     
@@ -10,11 +11,7 @@ def quadratic_mapping(xlim=(-2, 2), ylim=(-2, 2), resolution=400):
     - ylim: tupla con los límites del eje y (parte imaginaria).
     - resolution: número de puntos en cada dimensión.
     """
-    # Crear una malla de valores en el plano complejo
-    real = np.linspace(xlim[0], xlim[1], resolution)
-    imag = np.linspace(ylim[0], ylim[1], resolution)
-    X, Y = np.meshgrid(real, imag)
-    Z = X + 1j * Y  # Z = x + iy, números complejos en la malla
+   
 
     # Aplicar el mapeo cuadrático w = z^2
     W = Z**2
@@ -45,5 +42,15 @@ def quadratic_mapping(xlim=(-2, 2), ylim=(-2, 2), resolution=400):
     plt.tight_layout()
     plt.show()
 
+ # Crear una malla de valores en el plano complejo
+xlim = (-2, 2)
+ylim = (-2, 2)
+resolution = 400
+real = np.linspace(xlim[0], xlim[1], resolution)
+imag = np.linspace(ylim[0], ylim[1], resolution)
+X, Y = np.meshgrid(real, imag)
+Z = X + 1j * Y  # Z = x + iy, números complejos en la malla
+
+
 # Llamar a la función para graficar el mapeo cuadrático
-quadratic_mapping()
+quadratic_mapping(Z)

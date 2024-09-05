@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+#Se tomo ayuda de https://chatgpt.com/
 def inverse_mapping(Z):
     """
     Realiza el mapeo inverso w = 1 / z y grafica el resultado con puntos.
