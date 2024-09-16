@@ -60,3 +60,6 @@ clip = mp.ImageSequenceClip(image_files, fps= 1/rest_time)
 output_video = os.path.join(output_dir, 'fractal_animation.mp4')
 clip.write_videofile(output_video, codec='libx264', audio_codec='libmp3lame', audio="ASM - Taller/Espectrograma/download.mp3")
 
+
+
+
