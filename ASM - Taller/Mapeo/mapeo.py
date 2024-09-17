@@ -7,7 +7,7 @@ import audio_parameters
 
 audio_path = 'ASM - Taller/Espectrograma/download.wav'
 
-traslaciones, roots, iteraciones, rest_time = audio_parameters.analyze_audio_in_windows(audio_path)
+traslaciones, roots, iteraciones, rest_time, silly= audio_parameters.analyze_audio_in_windows(audio_path)
 
 # Imprimir el número de ventanas analizadas y ejemplo de valores
 print(f"Ejemplo de magnitudes en dB: {traslaciones[:5]}")

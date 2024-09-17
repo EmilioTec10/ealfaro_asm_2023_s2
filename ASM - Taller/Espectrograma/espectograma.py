@@ -11,9 +11,6 @@ from scipy.fft import fftshift
 fs, audioClean = wavfile.read('ASM - Taller\Espectrograma\download.wav')
 fs, audioNoise = wavfile.read('ASM - Taller\Espectrograma\download.wav')
 
-fs, audioClean = wavfile.read('/home/emilio/Documents/ealfaro_asm_2023_s2./ASM - Taller/Espectrograma/download.wav')
-fs, audioNoise = wavfile.read('/home/emilio/Documents/ealfaro_asm_2023_s2./ASM - Taller/Espectrograma/download.wav')
-
 
 samples = len(audioClean)
 t = np.arange(0, samples/fs, 1/fs)
