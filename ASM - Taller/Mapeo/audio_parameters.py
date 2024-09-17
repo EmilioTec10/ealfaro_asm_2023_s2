@@ -34,20 +34,36 @@ def analyze_audio_in_windows(audio_path, window_size=2048, hop_length=512):
     # Redondear magnitudes_db a 2 decimales
     magnitudes_db = np.round(magnitudes_db, 2)
 
-    # Convertir los pitches promedio a int y manejar el caso 0
     avg_pitches_dHz = []
+    
     for p in pitches[:min_length]:
         if len(p) > 0:
             # Convertir a dHz y redondear al entero más cercano
             avg_pitch_dHz = int(round(np.mean(p) / 10))
-            # Si el pitch resultante es 0, asignar el valor 10
+            
             if avg_pitch_dHz == 0:
                 avg_pitch_dHz = 1
             avg_pitches_dHz.append(avg_pitch_dHz)
         else:
-            # En caso de que no haya valores válidos, asignar 10
-            avg_pitches_dHz.append(10)
-
+           
+            avg_pitches_dHz.append(1)
+    avg_pitches_myriaHz = []
+    for p in pitches[:min_length]:
+       
+        # Convertir cada valor de pitch en myriaHz y redondear a 2 decimales
+        if len(p) > 0:
+            # Convertir los valores a float estándar y luego a myriaHz
+            pitch_myriaHz_values = [round(float(freq) / 10000, 2) for freq in p]
+            # Calcular la media de los valores convertidos a myriaHz
+            avg_pitch_myriaHz = round(float(np.mean(pitch_myriaHz_values)), 2)
+            
+            if avg_pitch_myriaHz == 0:
+                avg_pitch_myriaHz = 0.01  # Asignar un valor mínimo en myriaHz
+            avg_pitches_myriaHz.append(avg_pitch_myriaHz)
+        else:
+            avg_pitches_myriaHz.append(0.01)  # Asignar un valor mínimo en myriaHz
     rest_time = hop_length / sr
+
+    
     # Retornar los valores por ventana
-    return magnitudes_db, avg_delta_phase_degrees, avg_pitches_dHz, rest_time
+    return magnitudes_db, avg_delta_phase_degrees, avg_pitches_dHz, rest_time, avg_pitches_myriaHz
