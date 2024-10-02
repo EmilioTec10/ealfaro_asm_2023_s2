@@ -1,52 +1,136 @@
-#Codigo tomado de https://deepnote.com/app/marianodr-eb01/Aplicacion-FFT-799b9b0d-217e-4cce-97b6-991a72501dcf
-
-from scipy.io import wavfile # Permite leer y grabar audio
-from IPython.display import Audio # Permite reproducir el audio
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.io import wavfile
+from scipy.signal import hilbert, butter, filtfilt
 
-AudioName = "ASM-Tarea1/wind-chimes.wav" # Archivo de Audio
+# 1. Lectura del archivo de audio
+AudioName = "wind-chimes.wav"  # Ruta de tu archivo de audio
+fs, Audiodata = wavfile.read(AudioName)   # fs: frecuencia de muestreo, Audiodata: señal de audio
 
-fs, Audiodata = wavfile.read(AudioName)
+# Verificar si el audio es mono o estéreo
+if Audiodata.ndim == 1:
+    x = Audiodata
+else:
+    x = Audiodata[:, 0]  # Usar el canal izquierdo si es estéreo
 
-duracion = Audiodata.shape[0]/fs
+# Convertir a tipo float y normalizar entre -1 y 1
+x = x.astype(np.float32)
+max_val = np.max(np.abs(x))
+if max_val > 0:
+    x = x / max_val
 
-print(f'Duracion = {duracion} , Frecuencia de Muestreo = {fs} [Muestras/Seg]' \
-      f', Wav format = {Audiodata.dtype}')
+# Vector de tiempo
+t = np.arange(len(x)) / fs
 
-dt = 1/fs                                    # Tiempo entre muestras
-t = np.arange(0, duracion, dt)               # Se genera el vector tiempo
-x = Audiodata[:,0]                           # Se crea la señal de sonido
-
-plt.plot(t,x,color='r',lw=1,label='Audio')
-plt.xlim(t[0],t[-1])
-plt.title('Audio en el tiempo')
+# Visualización de la señal original
+plt.figure(figsize=(12, 4))
+plt.plot(t, x)
+plt.title('Señal de Audio Original')
 plt.xlabel('Tiempo [s]')
-plt.xlabel('Amplitud')
-plt.legend()
+plt.ylabel('Amplitud')
 plt.show()
 
-N = len(t)                                           # Cantidad de muestras totales
+# 2. Modulación AM con portadora completa
+# Verificar la frecuencia de muestreo
+print(f"Frecuencia de muestreo del archivo: {fs} Hz")
 
-AUDIO_FFT = np.fft.fft(x,N)                          # Computo de la FFT
+# Parámetros de la portadora
+fc = 10000  # Frecuencia de la portadora ajustada a 10 kHz
 
-mag_AUDIO_FFT = abs(AUDIO_FFT)                       # Magnitud de los coefiecientes
-PSD = AUDIO_FFT * np.conj(AUDIO_FFT) / N             # Densidad espectral de potencia (Power spectrum, power per frecuency)
+# Verificar que la frecuencia de la portadora sea válida
+if fc >= fs / 2:
+    raise ValueError("La frecuencia de la portadora debe ser menor que la mitad de la frecuencia de muestreo (fs/2).")
 
-freq = (1/(dt*N)) * np.arange(N)                     # Eje x de frecuencias
-L = np.arange(0, np.floor(N/2), dtype='int')         # Para plotear la primera mitad del espectro
+A = 1       # Amplitud de la portadora
 
-plt.plot(freq[L], mag_AUDIO_FFT[L])
-plt.title('Espectro del audio')
-plt.xlabel('Frecuencia [Hz]')
-plt.ylabel('Magnitud FFT')
-plt.xlim(freq[L[0]],freq[L[-1]])
+# Generar la señal portadora
+carrier = np.cos(2 * np.pi * fc * t)
+
+# Modulación AM: (A + x) * carrier
+modulated_signal = (A + x) * carrier
+
+# Visualización de la señal modulada
+plt.figure(figsize=(12, 4))
+plt.plot(t, modulated_signal)
+plt.title('Señal Modulada en Amplitud (AM)')
+plt.xlabel('Tiempo [s]')
+plt.ylabel('Amplitud')
 plt.show()
 
-plt.plot(freq[L],PSD[L],color='r',lw=2,label='PSD')
-plt.title('PSD(Densidad espectral de potencia) del audio')
-plt.xlim(freq[L[0]],freq[L[-1]])
-plt.xlabel('Frecuencia [Hz]')
-plt.ylabel('Potencia')
-plt.legend()
+# 3. Demodulación de la señal AM
+
+# Obtener la envolvente de la señal modulada usando la Transformada de Hilbert
+analytic_signal = hilbert(modulated_signal)
+envelope = np.abs(analytic_signal)
+
+# Filtro pasa bajos para eliminar componentes de alta frecuencia
+def butter_lowpass(cutoff, fs, order=5):
+    nyq = 0.5 * fs  # Frecuencia de Nyquist
+    normal_cutoff = cutoff / nyq
+    b, a = butter(order, normal_cutoff, btype='low', analog=False)
+    return b, a
+
+# Parámetros del filtro pasa bajos
+cutoff = 5000  # Ajusta esta frecuencia según el contenido de tu señal
+order = 6      # Orden del filtro
+
+# Aplicar el filtro pasa bajos a la envolvente
+b, a = butter_lowpass(cutoff, fs, order)
+demodulated_signal = filtfilt(b, a, envelope)
+
+# Visualización de la señal demodulada
+plt.figure(figsize=(12, 4))
+plt.plot(t, demodulated_signal)
+plt.title('Señal Demodulada')
+plt.xlabel('Tiempo [s]')
+plt.ylabel('Amplitud')
 plt.show()
+
+# 4. Comparación de las señales en el dominio del tiempo
+
+plt.figure(figsize=(12, 8))
+
+plt.subplot(3, 1, 1)
+plt.plot(t, x)
+plt.title('Señal Original')
+plt.xlabel('Tiempo [s]')
+plt.ylabel('Amplitud')
+
+plt.subplot(3, 1, 2)
+plt.plot(t, modulated_signal)
+plt.title('Señal Modulada (AM)')
+plt.xlabel('Tiempo [s]')
+plt.ylabel('Amplitud')
+
+plt.subplot(3, 1, 3)
+plt.plot(t, demodulated_signal)
+plt.title('Señal Demodulada')
+plt.xlabel('Tiempo [s]')
+plt.ylabel('Amplitud')
+
+plt.tight_layout()
+plt.show()
+
+# 5. Comparación de las señales en el dominio de la frecuencia (usando FFT)
+
+# Función para calcular y graficar el espectro de frecuencia
+def plot_frequency_spectrum(signal, fs, title):
+    N = len(signal)
+    yf = np.fft.rfft(signal)
+    xf = np.fft.rfftfreq(N, 1 / fs)
+    plt.figure(figsize=(12, 4))
+    plt.plot(xf, np.abs(yf))
+    plt.title(title)
+    plt.xlabel('Frecuencia [Hz]')
+    plt.ylabel('Magnitud')
+    plt.xlim(0, fs / 2)
+    plt.show()
+
+# Espectro de la señal original
+plot_frequency_spectrum(x, fs, 'Espectro de Frecuencia de la Señal Original')
+
+# Espectro de la señal modulada
+plot_frequency_spectrum(modulated_signal, fs, 'Espectro de Frecuencia de la Señal Modulada')
+
+# Espectro de la señal demodulada
+plot_frequency_spectrum(demodulated_signal, fs, 'Espectro de Frecuencia de la Señal Demodulada')
