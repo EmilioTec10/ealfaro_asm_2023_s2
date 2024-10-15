@@ -24,6 +24,7 @@ print(f"Ejemplo de cambio de fase en grados: {exp}")
 print(f"Ejemplo de pitch: {xn}")
 
 def lyapunov_fractal(seq, x_min, x_max, y_min, y_max, width, height, exp, xn_, iterations):
+
     # Crear la cuadrícula de coordenadas
     x = np.linspace(x_min, x_max, width)
     y = np.linspace(y_min, y_max, height)
@@ -35,13 +36,11 @@ def lyapunov_fractal(seq, x_min, x_max, y_min, y_max, width, height, exp, xn_, i
             rA = x[j]
             rB = y[i]
             r = [rA if s == 'A' else rB for s in seq]
-            
             xn = xn_
             lyapunov_exp = exp
             for k in range(iterations):
                 xn = r[k % len(r)] * xn * (1 - xn)
                 lyapunov_exp += np.log(abs(r[k % len(r)] * (1 - 2 * xn)))
-
             lyap[i, j] = lyapunov_exp / iterations
 
     # Normalizar los valores del exponente de Lyapunov para la visualización
@@ -80,3 +79,4 @@ clip = mp.ImageSequenceClip(image_files, fps=1/rest_time)
 # Guardar el video usando parámetros adicionales
 output_video = os.path.join(output_dir, 'fractal_animation.mp4')
 clip.write_videofile(output_video, codec='libx264', audio_codec='libmp3lame', audio="ASM - Taller/Espectrograma/download.mp3")
+
