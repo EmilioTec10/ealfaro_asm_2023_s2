@@ -11,13 +11,7 @@ const int resolution = 8; // Resolución de 8 bits para el PWM
 const int dutyCycle = 128; // Ciclo de trabajo (50% de 256)
 
 void setupModulacion() {
-  Serial.begin(9600);
   pinMode(pinFSK, OUTPUT);
-
-  // Configurar canal PWM para el pin de salida
-  ledcAttach(pinFSK, freqF1_mic, resolution);
-  ledcWrite(pinFSK, dutyCycle);
-
   Serial.println("Modulación configurada correctamente.");
 }
 
