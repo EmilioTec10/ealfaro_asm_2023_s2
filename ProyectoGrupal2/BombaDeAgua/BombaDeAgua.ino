@@ -1,59 +1,67 @@
 // Definir los pines
-const int bombaPin = 7;           // Pin del MOSFET que controla la bomba
+const int bombaPin1 = 7;           // Pin del MOSFET que controla la bomba 1 (para subir el nivel de agua)
+const int bombaPin2 = 8;           // Pin del MOSFET que controla la bomba 2 (para devolver el agua)
 const int potenciometroPin = A1;   // Pin del potenciómetro
-const int triggerPin = 2;          // Pin de trigger del sensor ultrasónico
-const int echoPin = 3;             // Pin de echo del sensor ultrasónico
+
+int valorPotenciometroPrevio = 0;
+const int tolerancia = 5;          // Define un margen de tolerancia para evitar fluctuaciones
+const int estabilidadRequerida = 3; // Número de lecturas estables necesarias para activar el cambio
+int contadorEstable = 0;
 
 void setup() {
   // Inicializar comunicación serial
   Serial.begin(9600);
 
   // Configurar pines
-  pinMode(bombaPin, OUTPUT);
-  pinMode(triggerPin, OUTPUT);
-  pinMode(echoPin, INPUT);
+  pinMode(bombaPin1, OUTPUT);
+  pinMode(bombaPin2, OUTPUT);
+
+  // Asegurarse de que las bombas estén apagadas al inicio
+  digitalWrite(bombaPin1, LOW);
+  digitalWrite(bombaPin2, LOW);
 }
 
 void loop() {
   // Leer el valor analógico del potenciómetro (0 a 1023)
   int valorPotenciometro = analogRead(potenciometroPin);
 
-  // Mapear el valor del potenciómetro a una distancia deseada (15 cm a 5 cm)
-  int distanciaDeseada = map(valorPotenciometro, 0, 1023, 15, 5);
-
-  // Enviar pulso al sensor ultrasónico
-  digitalWrite(triggerPin, LOW);
-  delayMicroseconds(2);
-  digitalWrite(triggerPin, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(triggerPin, LOW);
-
-  // Leer el tiempo de duración del pulso de retorno
-  long duracion = pulseIn(echoPin, HIGH);
-
-  // Calcular la distancia medida en centímetros
-  int distanciaMedida = duracion * 0.034 / 2;
-
-  // Control de la bomba basado en la distancia deseada
-  if (distanciaMedida > distanciaDeseada) {
-    // Si la distancia medida es mayor que la deseada, encender la bomba
-    digitalWrite(bombaPin, HIGH);
-    Serial.println("Bomba encendida.");
+  // Comparar el valor actual del potenciómetro con el valor previo considerando la tolerancia
+  if (valorPotenciometro > valorPotenciometroPrevio + tolerancia) {
+    // Si el valor del potenciómetro ha subido más allá de la tolerancia, incrementar contador
+    contadorEstable++;
+    if (contadorEstable >= estabilidadRequerida) {
+      // Si el cambio es estable, activar la bomba 1 y apagar la bomba 2
+      digitalWrite(bombaPin1, HIGH);
+      digitalWrite(bombaPin2, LOW);
+      Serial.println("Bomba 1 encendida (subiendo nivel de agua).");
+      contadorEstable = 0;
+    }
+  } else if (valorPotenciometro < valorPotenciometroPrevio - tolerancia) {
+    // Si el valor del potenciómetro ha bajado más allá de la tolerancia, incrementar contador
+    contadorEstable++;
+    if (contadorEstable >= estabilidadRequerida) {
+      // Si el cambio es estable, activar la bomba 2 y apagar la bomba 1
+      digitalWrite(bombaPin1, LOW);
+      digitalWrite(bombaPin2, HIGH);
+      Serial.println("Bomba 2 encendida (devolviendo agua).");
+      contadorEstable = 0;
+    }
   } else {
-    // Si la distancia medida es igual o menor que la deseada, apagar la bomba
-    digitalWrite(bombaPin, LOW);
-    Serial.println("Bomba apagada.");
+    // Si el valor del potenciómetro está dentro de la tolerancia, apagar ambas bombas
+    digitalWrite(bombaPin1, LOW);
+    digitalWrite(bombaPin2, LOW);
+    Serial.println("Ambas bombas apagadas.");
+    contadorEstable = 0; // Reiniciar el contador ya que el valor es estable
   }
 
-  // Imprimir los valores en el Monitor Serial
-  Serial.print("Valor del potenciometro: ");
+  // Imprimir los valores en el Monitor Serial para depuración
+  Serial.print("Valor anterior: ");
+  Serial.println(valorPotenciometroPrevio);
+  Serial.print("Valor actual: ");
   Serial.println(valorPotenciometro);
-  Serial.print("Distancia deseada: ");
-  Serial.print(distanciaDeseada);
-  Serial.println(" cm");
-  Serial.print("Distancia medida por el sensor ultrasonico: ");
-  Serial.print(distanciaMedida);
-  Serial.println(" cm");
 
-  delay(1000); // Espera 1 segundo antes de la siguiente lectura
+  // Guardar el valor actual del potenciómetro para la siguiente iteración
+  valorPotenciometroPrevio = valorPotenciometro;
+
+  delay(100); // Espera 100 ms antes de la siguiente lectura
 }
