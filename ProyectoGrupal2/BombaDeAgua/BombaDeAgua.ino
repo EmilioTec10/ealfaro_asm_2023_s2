@@ -4,62 +4,99 @@ const int bombaPin2 = 8;           // Pin del MOSFET que controla la bomba 2 (pa
 const int potenciometroPin = A1;   // Pin del potenciómetro
 const int sensorAguaPin = A2;      // Pin del sensor de nivel de agua
 
-// Constantes y variables
-const int tolerancia = 5;               // Tolerancia para cambios en el potenciómetro
-const int margenSensor = 20;            // Margen de variación permitida para el sensor de agua
-const int estabilidadRequerida = 3;     // Número de lecturas estables necesarias para activar el cambio
+// Constantes PID
+double Kp = 1.0;                   // Constante proporcional (ajustar según necesite)
+double Ki = 0.2;                   // Constante integral (ajustar según necesite)
+double Kd = 0.5;                   // Constante derivativa (ajustar según necesite)
+const int zonaMuerta = 5;          // Zona muerta reducida para mayor precisión
 
-int valorPotenciometroPrevio = 0;
-int contadorEstable = 0;
+// Filtro de Media Móvil
+const int numLecturas = 10;        // Número de lecturas para el filtro de media móvil
+int lecturas[numLecturas];         // Array para almacenar las lecturas
+int indiceLectura = 0;
+int sumaLecturas = 0;
+
+// Variables PID
+double errorPrevio = 0;
+double integral = 0;
+unsigned long tiempoPrevio = 0;
 
 void setup() {
-  // Inicializar comunicación serial
   Serial.begin(9600);
 
   // Configurar pines
   pinMode(bombaPin1, OUTPUT);
   pinMode(bombaPin2, OUTPUT);
 
-  // Asegurarse de que las bombas estén apagadas al inicio
+  // Inicializar todas las lecturas a 0 para el filtro
+  for (int i = 0; i < numLecturas; i++) {
+    lecturas[i] = 0;
+  }
+
   digitalWrite(bombaPin1, LOW);
   digitalWrite(bombaPin2, LOW);
 }
 
 void loop() {
-  // Leer el valor analógico del potenciómetro (0 a 1023)
+  // Leer y mapear el valor del potenciómetro
   int valorPotenciometro = analogRead(potenciometroPin);
+  int nivelDeseado = map(valorPotenciometro, 0, 1023, 120, 570);
 
-  // Mapeo del valor del potenciómetro al rango de 100 a 450
-  int valorObjetivo = map(valorPotenciometro, 0, 1023, 100, 470);
+  // Leer y filtrar el valor del sensor de agua
+  int lecturaSensor = analogRead(sensorAguaPin);
+  sumaLecturas -= lecturas[indiceLectura];
+  lecturas[indiceLectura] = lecturaSensor;
+  sumaLecturas += lecturaSensor;
+  indiceLectura = (indiceLectura + 1) % numLecturas;
 
-  // Leer el valor del sensor de agua
-  int valorSensorAgua = analogRead(sensorAguaPin);
+  // Calcular el promedio filtrado del sensor
+  int nivelActual = sumaLecturas / numLecturas;
 
-  // Comparar el valor del sensor con el objetivo y verificar si está fuera del margen permitido
-  if (valorSensorAgua < (valorObjetivo - margenSensor)) {
-    // Si el valor del sensor es menor que el objetivo, enciende la bomba 1 para subir el nivel de agua
-    digitalWrite(bombaPin1, HIGH);
-    digitalWrite(bombaPin2, LOW);
-    Serial.println("Bomba 1 encendida (subiendo nivel de agua).");
+  // Calcular el error
+  double error = nivelDeseado - nivelActual;
 
-  } else if (valorSensorAgua > (valorObjetivo + margenSensor)) {
-    // Si el valor del sensor es mayor que el objetivo, enciende la bomba 2 para bajar el nivel de agua
-    digitalWrite(bombaPin1, LOW);
-    digitalWrite(bombaPin2, HIGH);
-    Serial.println("Bomba 2 encendida (devolviendo agua).");
-
-  } else {
-    // Si el valor del sensor está dentro del margen permitido, apaga ambas bombas
+  // Aplicar la zona muerta
+  if (abs(error) < zonaMuerta) {
     digitalWrite(bombaPin1, LOW);
     digitalWrite(bombaPin2, LOW);
-    Serial.println("Nivel de agua estable, ambas bombas apagadas.");
+    Serial.println("Error dentro de la zona muerta, ambas bombas apagadas.");
+    return; // Salir del loop si el error está dentro de la zona muerta
   }
 
-  // Imprimir los valores en el Monitor Serial para depuración
-  Serial.print("Valor objetivo (potenciómetro): ");
-  Serial.println(valorObjetivo);
-  Serial.print("Valor del sensor de agua: ");
-  Serial.println(valorSensorAgua);
+  // Calcular el tiempo transcurrido
+  unsigned long tiempoActual = millis();
+  double deltaTiempo = (tiempoActual - tiempoPrevio) / 1000.0; // Convertir a segundos
 
-  delay(100); // Espera 100 ms antes de la siguiente lectura
+  // Calcular términos PID
+  integral += error * deltaTiempo;
+  double derivada = (error - errorPrevio) / deltaTiempo;
+  double salidaPID = (Kp * error) + (Ki * integral) + (Kd * derivada);
+
+  // Limitar la salida del PID para un control más gradual
+  salidaPID = constrain(salidaPID, -255, 255);
+
+  // Control de las bombas basado en la salida PID
+  if (salidaPID > 0) {
+    analogWrite(bombaPin1, salidaPID); // Usa PWM para control gradual de la bomba 1
+    digitalWrite(bombaPin2, LOW);
+    Serial.println("Bomba 1 encendida (subiendo nivel de agua).");
+  } else if (salidaPID < 0) {
+    analogWrite(bombaPin2, -salidaPID); // Usa PWM para control gradual de la bomba 2
+    digitalWrite(bombaPin1, LOW);
+    Serial.println("Bomba 2 encendida (devolviendo agua).");
+  }
+
+  // Imprimir valores para monitoreo
+  Serial.print("Nivel deseado: ");
+  Serial.println(nivelDeseado);
+  Serial.print("Nivel actual filtrado: ");
+  Serial.println(nivelActual);
+  Serial.print("Salida PID: ");
+  Serial.println(salidaPID);
+
+  // Actualizar variables previas
+  errorPrevio = error;
+  tiempoPrevio = tiempoActual;
+
+  delay(100); // Espera antes de la siguiente lectura
 }
