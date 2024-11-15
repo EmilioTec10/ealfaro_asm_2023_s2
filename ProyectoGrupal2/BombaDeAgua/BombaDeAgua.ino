@@ -3,6 +3,9 @@ const int bombaPin1 = 7;            // Pin del MOSFET que controla la bomba 1 (p
 const int bombaPin2 = 8;            // Pin del MOSFET que controla la bomba 2 (para devolver el agua)
 const int potenciometroPin = A1;    // Pin del potenciómetro
 const int sensorAguaPin = A2;       // Pin del sensor de nivel de agua
+const int dipSwitchPin1 = 2;        // Primer bit del DIP switch
+const int dipSwitchPin2 = 3;        // Segundo bit del DIP switch
+const int dipSwitchPin3 = 4;        // Tercer bit del DIP switch
 
 // Constantes PID para bomba 1
 double Kp1 = 1.0;
@@ -37,12 +40,30 @@ unsigned long tiempoPrevio2 = 0;
 bool bomba1Activa = false;
 bool bomba2Activa = false;
 
+// Variables para la señal cuadrada
+unsigned long tiempoCambio = 0;
+bool nivelAlto = true;  // Estado de la señal cuadrada (true = alto, false = bajo)
+
+// Variable de tiempo para la onda senoidal
+unsigned long tiempoSenoidal = 0;
+
+// Función para leer el valor del DIP switch y convertirlo a decimal
+int leerDipSwitch() {
+  int bit1 = digitalRead(dipSwitchPin3);
+  int bit2 = digitalRead(dipSwitchPin2);
+  int bit3 = digitalRead(dipSwitchPin1);
+  return (bit3 << 2) | (bit2 << 1) | bit1;  // Convertir los bits a un valor decimal
+}
+
 void setup() {
   Serial.begin(9600);
 
   // Configurar pines
   pinMode(bombaPin1, OUTPUT);
   pinMode(bombaPin2, OUTPUT);
+  pinMode(dipSwitchPin1, INPUT);
+  pinMode(dipSwitchPin2, INPUT);
+  pinMode(dipSwitchPin3, INPUT);
 
   // Inicializar todas las lecturas a 0 para el filtro
   for (int i = 0; i < numLecturas; i++) {
@@ -55,8 +76,28 @@ void setup() {
 
 void loop() {
   // Leer y mapear el valor del potenciómetro
-  int valorPotenciometro = analogRead(potenciometroPin);
-  int nivelDeseado = map(valorPotenciometro, 0, 1023, 300, 500);
+  int valorDipSwitch = leerDipSwitch();
+  int nivelDeseado;
+
+  // Si el valor del DIP switch es 0, el nivel deseado se controla con el potenciómetro
+  if (valorDipSwitch == 0) {
+    int valorPotenciometro = analogRead(potenciometroPin);
+    nivelDeseado = map(valorPotenciometro, 0, 1023, 300, 500);  // Convertir a porcentaje
+
+  // Si el valor del DIP switch es 1, el nivel deseado es una señal senoidal
+  } else if (valorDipSwitch == 1) {
+    tiempoSenoidal += 20;  // Incremento de tiempo en ms para la onda
+    nivelDeseado = 400 + 100 * sin(tiempoSenoidal * 0.001); // Onda senoidal entre 300 y 500
+
+  // Si el valor del DIP switch es 1, el nivel deseado es una señal cuadrada
+  } else if (valorDipSwitch == 3) {
+    unsigned long tiempoActual = millis();
+    if (tiempoActual - tiempoCambio >= 100) {  // Cambiar cada 100 ms
+      tiempoCambio = tiempoActual;
+      nivelAlto = !nivelAlto;  // Alternar el nivel
+    }
+    nivelDeseado = nivelAlto ? 500 : 300;  // Alterna entre 500 y 300
+  }
 
   // Leer y filtrar el valor del sensor de agua
   int lecturaSensor = analogRead(sensorAguaPin);
