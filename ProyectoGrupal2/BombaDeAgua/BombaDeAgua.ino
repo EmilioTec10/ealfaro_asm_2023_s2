@@ -56,7 +56,7 @@ void setup() {
 void loop() {
   // Leer y mapear el valor del potenciómetro
   int valorPotenciometro = analogRead(potenciometroPin);
-  int nivelDeseado = map(valorPotenciometro, 0, 1023, 200, 570);
+  int nivelDeseado = map(valorPotenciometro, 0, 1023, 300, 500);
 
   // Leer y filtrar el valor del sensor de agua
   int lecturaSensor = analogRead(sensorAguaPin);
@@ -73,6 +73,7 @@ void loop() {
 
   // Aplicar la zona muerta para evitar movimientos innecesarios
   if (abs(error) < zonaMuerta) {
+    // Apagar ambas bombas si el error está dentro de la zona muerta
     digitalWrite(bombaPin1, LOW);
     digitalWrite(bombaPin2, LOW);
     bomba1Activa = false;
@@ -118,6 +119,13 @@ void loop() {
     // Actualizar variables previas para bomba 2
     errorPrevio2 = error;
     tiempoPrevio2 = tiempoActual;
+  } else if (error < histeresis && error > -histeresis) {
+    // Apagar ambas bombas si el error es menor que la histéresis (dentro del rango cercano al nivel deseado)
+    digitalWrite(bombaPin1, LOW);
+    digitalWrite(bombaPin2, LOW);
+    bomba1Activa = false;
+    bomba2Activa = false;
+    Serial.println("Ambas bombas apagadas (dentro de histéresis).");
   }
 
   // Imprimir valores para monitoreo
