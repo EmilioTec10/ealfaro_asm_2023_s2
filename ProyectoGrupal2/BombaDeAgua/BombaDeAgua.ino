@@ -20,6 +20,10 @@ double Kd2 = 0.5;
 const int zonaMuerta = 5;          // Zona muerta para ambas bombas
 const int histeresis = 20;         // Margen de histéresis
 
+// Límites de la señal (mínimo y máximo)
+int nivelMinimo = 320;
+int nivelMaximo = 500;
+
 // Filtro de Media Móvil
 const int numLecturas = 10;
 int lecturas[numLecturas];
@@ -46,6 +50,10 @@ bool nivelAlto = true;  // Estado de la señal cuadrada (true = alto, false = ba
 
 // Variable de tiempo para la onda senoidal
 unsigned long tiempoSenoidal = 0;
+
+// Variables para la señal triangular
+int nivelTriangular = nivelMinimo;
+bool aumentando = true;  // Dirección de la señal triangular (true = aumentando, false = disminuyendo)
 
 // Función para leer el valor del DIP switch y convertirlo a decimal
 int leerDipSwitch() {
@@ -75,29 +83,55 @@ void setup() {
 }
 
 void loop() {
-  // Leer y mapear el valor del potenciómetro
+  // Leer el valor del DIP switch
   int valorDipSwitch = leerDipSwitch();
   int nivelDeseado;
 
   // Si el valor del DIP switch es 0, el nivel deseado se controla con el potenciómetro
   if (valorDipSwitch == 0) {
     int valorPotenciometro = analogRead(potenciometroPin);
-    nivelDeseado = map(valorPotenciometro, 0, 1023, 300, 500);  // Convertir a porcentaje
+    nivelDeseado = map(valorPotenciometro, 0, 1023, nivelMinimo, nivelMaximo);  // Convertir a rango entre nivelMinimo y nivelMaximo
 
   // Si el valor del DIP switch es 1, el nivel deseado es una señal senoidal
   } else if (valorDipSwitch == 1) {
-    tiempoSenoidal += 20;  // Incremento de tiempo en ms para la onda
-    nivelDeseado = 400 + 100 * sin(tiempoSenoidal * 0.001); // Onda senoidal entre 300 y 500
+    tiempoSenoidal += 10;  // Incremento de tiempo en ms para la onda
+    nivelDeseado = (nivelMinimo + nivelMaximo) / 2 + ((nivelMaximo - nivelMinimo) / 2) * sin(tiempoSenoidal * 0.001); // Onda senoidal entre nivelMinimo y nivelMaximo
 
-  // Si el valor del DIP switch es 1, el nivel deseado es una señal cuadrada
+  // Si el valor del DIP switch es 2, el nivel deseado es una señal triangular
+  } else if (valorDipSwitch == 2) {
+    if (aumentando) {
+      nivelTriangular += 5;  // Aumentar el valor de la señal
+      if (nivelTriangular >= nivelMaximo) {
+        aumentando = false;  // Cambiar dirección si llega al máximo
+      }
+    } else {
+      nivelTriangular -= 5;  // Disminuir el valor de la señal
+      if (nivelTriangular <= nivelMinimo) {
+        aumentando = true;  // Cambiar dirección si llega al mínimo
+      }
+    }
+    nivelDeseado = nivelTriangular;
+
+  // Si el valor del DIP switch es 3, el nivel deseado es una señal cuadrada
   } else if (valorDipSwitch == 3) {
     unsigned long tiempoActual = millis();
     if (tiempoActual - tiempoCambio >= 100) {  // Cambiar cada 100 ms
       tiempoCambio = tiempoActual;
       nivelAlto = !nivelAlto;  // Alternar el nivel
     }
-    nivelDeseado = nivelAlto ? 500 : 300;  // Alterna entre 500 y 300
+    nivelDeseado = nivelAlto ? nivelMaximo : nivelMinimo;  // Alterna entre nivelMaximo y nivelMinimo
+   // Si el valor del DIP switch es 4, el nivel deseado es una señal de sierra
+  } else if (valorDipSwitch == 4) {
+      nivelTriangular += 3;  // Aumentar el valor de la señal
+
+      // Si llega al valor máximo, reiniciar al valor mínimo
+      if (nivelTriangular >= nivelMaximo) {
+          nivelTriangular = nivelMinimo;
+      }
+      
+      nivelDeseado = nivelTriangular;
   }
+
 
   // Leer y filtrar el valor del sensor de agua
   int lecturaSensor = analogRead(sensorAguaPin);
@@ -161,6 +195,13 @@ void loop() {
     errorPrevio2 = error;
     tiempoPrevio2 = tiempoActual;
   } else if (error < histeresis && error > -histeresis) {
+    // Apagar ambas bombas si el error es menor que la histéresis (dentro del rango cercano al nivel deseado)
+    digitalWrite(bombaPin1, LOW);
+    digitalWrite(bombaPin2, LOW);
+    bomba1Activa = false;
+    bomba2Activa = false;
+    Serial.println("Ambas bombas apagadas (dentro de histéresis).");
+  } else {
     // Apagar ambas bombas si el error es menor que la histéresis (dentro del rango cercano al nivel deseado)
     digitalWrite(bombaPin1, LOW);
     digitalWrite(bombaPin2, LOW);
